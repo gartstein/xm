@@ -17,7 +17,6 @@ const (
 	NonProfit          CompanyType = "NON_PROFIT"
 	Cooperative        CompanyType = "COOPERATIVE"
 	SoleProprietorship CompanyType = "SOLE_PROPRIETORSHIP"
-	Unknown            CompanyType = "UNSPECIFIED"
 )
 
 // Company defines the domain model for a company entity.

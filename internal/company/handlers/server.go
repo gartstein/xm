@@ -18,6 +18,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 // CompanyController defines the business logic interface
@@ -57,6 +58,7 @@ func NewServer(
 // RegisterGRPCHandler registers the gRPC handler for the CompanyService.
 func (s *Server) RegisterGRPCHandler(h *CompanyHandler) {
 	pb.RegisterCompanyServiceServer(s.grpcServer, h)
+	reflection.Register(s.grpcServer)
 }
 
 // RegisterHTTPGateway sets up the HTTP reverse-proxy (gRPC-Gateway) with the specified dial options.

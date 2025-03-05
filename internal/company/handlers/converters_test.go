@@ -31,7 +31,7 @@ func TestProtoToModel(t *testing.T) {
 		Description: "A company for testing",
 		Employees:   100,
 		Registered:  true,
-		Type:        pb.CompanyType_COMPANY_TYPE_CORPORATIONS,
+		Type:        pb.CompanyType_CORPORATIONS,
 	}
 
 	company, err := h.protoToModel(pbCompany)
@@ -51,7 +51,7 @@ func TestProtoToModel(t *testing.T) {
 		t.Errorf("expected registered %v, got %v", pbCompany.Registered, company.Registered)
 	}
 	// For Type, compare string representations.
-	expectedType := models.CompanyType(pbCompany.Type.String())
+	expectedType := normalizeCompanyType(pbCompany.Type)
 	if company.Type != expectedType {
 		t.Errorf("expected type %q, got %q", expectedType, company.Type)
 	}
@@ -77,7 +77,7 @@ func TestProtoToUpdate(t *testing.T) {
 		Description: "Updated Description",
 		Employees:   150,
 		Registered:  false,
-		Type:        pb.CompanyType_COMPANY_TYPE_NON_PROFIT,
+		Type:        pb.CompanyType_NON_PROFIT,
 	}
 
 	update, err := h.protoToUpdate(pbCompany, id)

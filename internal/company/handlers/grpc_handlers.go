@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 
 	pb "github.com/gartstein/xm/api/gen/definition/v1"
 	"github.com/google/uuid"
@@ -28,28 +29,28 @@ func NewCompanyHandler(service CompanyController, logger *zap.Logger) *CompanyHa
 
 // CreateCompany processes a CreateCompanyRequest, creating a new Company in the system.
 func (h *CompanyHandler) CreateCompany(ctx context.Context, req *pb.CreateCompanyRequest) (*pb.CreateCompanyResponse, error) {
-	if req.GetCompany() == nil {
+	reqCompany := req.GetCompany()
+	if reqCompany == nil {
 		return nil, status.Error(codes.InvalidArgument, "company data required")
 	}
 
-	company, err := h.protoToModel(req.GetCompany())
+	company, err := h.protoToModel(reqCompany)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-
 	created, err := h.service.CreateCompany(ctx, company)
 	if err != nil {
 		h.logger.Error("Create company failed", zap.Error(err))
 		return nil, h.mapServiceError(err)
 	}
-
+	fmt.Println("CREATEd COMPANY", h.modelToProto(created))
 	return &pb.CreateCompanyResponse{
 		Company: h.modelToProto(created),
 	}, nil
 }
 
-// PatchCompany processes updates to an existing Company based on the provided ID and update data.
-func (h *CompanyHandler) PatchCompany(ctx context.Context, req *pb.UpdateCompanyRequest) (*pb.UpdateCompanyResponse, error) {
+// UpdateCompany processes updates to an existing Company based on the provided ID and update data.
+func (h *CompanyHandler) UpdateCompany(ctx context.Context, req *pb.UpdateCompanyRequest) (*pb.UpdateCompanyResponse, error) {
 	id, err := uuid.Parse(req.GetId())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid company ID")

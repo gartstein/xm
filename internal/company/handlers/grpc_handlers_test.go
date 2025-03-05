@@ -68,7 +68,7 @@ func TestCompanyHandler_CreateCompany(t *testing.T) {
 			Description: "Desc",
 			Employees:   10,
 			Registered:  true,
-			Type:        pb.CompanyType_COMPANY_TYPE_CORPORATIONS,
+			Type:        pb.CompanyType_CORPORATIONS,
 		}
 		req := &pb.CreateCompanyRequest{Company: pbCompany}
 		_, err := handler.CreateCompany(context.Background(), req)
@@ -96,7 +96,7 @@ func TestCompanyHandler_CreateCompany(t *testing.T) {
 			Description: "Desc",
 			Employees:   10,
 			Registered:  true,
-			Type:        pb.CompanyType_COMPANY_TYPE_CORPORATIONS,
+			Type:        pb.CompanyType_CORPORATIONS,
 		}
 		req := &pb.CreateCompanyRequest{Company: pbCompany}
 		resp, err := handler.CreateCompany(context.Background(), req)
@@ -120,7 +120,7 @@ func TestCompanyHandler_PatchCompany(t *testing.T) {
 			Id:      "invalid-uuid",
 			Company: &pb.Company{Name: "Update"},
 		}
-		_, err := handler.PatchCompany(context.Background(), req)
+		_, err := handler.UpdateCompany(context.Background(), req)
 		if err == nil {
 			t.Fatal("expected error for invalid uuid, got nil")
 		}
@@ -144,13 +144,13 @@ func TestCompanyHandler_PatchCompany(t *testing.T) {
 			Description: "Updated Desc",
 			Employees:   20,
 			Registered:  false,
-			Type:        pb.CompanyType_COMPANY_TYPE_NON_PROFIT,
+			Type:        pb.CompanyType_NON_PROFIT,
 		}
 		req := &pb.UpdateCompanyRequest{
 			Id:      testID,
 			Company: pbCompany,
 		}
-		_, err := handler.PatchCompany(context.Background(), req)
+		_, err := handler.UpdateCompany(context.Background(), req)
 		if err == nil {
 			t.Fatal("expected service error, got nil")
 		}
@@ -180,13 +180,13 @@ func TestCompanyHandler_PatchCompany(t *testing.T) {
 			Description: "Updated Desc",
 			Employees:   20,
 			Registered:  false,
-			Type:        pb.CompanyType_COMPANY_TYPE_NON_PROFIT,
+			Type:        pb.CompanyType_NON_PROFIT,
 		}
 		req := &pb.UpdateCompanyRequest{
 			Id:      testID.String(),
 			Company: pbCompany,
 		}
-		resp, err := handler.PatchCompany(context.Background(), req)
+		resp, err := handler.UpdateCompany(context.Background(), req)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

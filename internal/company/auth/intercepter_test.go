@@ -38,34 +38,34 @@ func TestAuthInterceptor(t *testing.T) {
 	}{
 		{
 			name:        "protected method valid token",
-			fullMethod:  "/company.v1.CompanyService/CreateCompany",
+			fullMethod:  "/definition.v1.CompanyService/CreateCompany",
 			token:       generateToken(validSecret, time.Now().Add(1*time.Hour)),
 			wantError:   false,
 			expectedErr: codes.OK,
 		},
 		{
 			name:        "protected method invalid token",
-			fullMethod:  "/company.v1.CompanyService/CreateCompany",
+			fullMethod:  "/definition.v1.CompanyService/CreateCompany",
 			token:       generateToken(invalidSecret, time.Now().Add(1*time.Hour)),
 			wantError:   true,
 			expectedErr: codes.Unauthenticated,
 		},
 		{
 			name:        "protected method expired token",
-			fullMethod:  "/company.v1.CompanyService/CreateCompany",
+			fullMethod:  "/definition.v1.CompanyService/CreateCompany",
 			token:       generateToken(validSecret, time.Now().Add(-1*time.Hour)),
 			wantError:   true,
 			expectedErr: codes.Unauthenticated,
 		},
 		{
 			name:        "protected method missing metadata",
-			fullMethod:  "/company.v1.CompanyService/CreateCompany",
+			fullMethod:  "/definition.v1.CompanyService/CreateCompany",
 			wantError:   true,
 			expectedErr: codes.Unauthenticated,
 		},
 		{
 			name:        "unprotected method no token",
-			fullMethod:  "/company.v1.CompanyService/GetCompany",
+			fullMethod:  "/definition.v1.CompanyService/GetCompany",
 			wantError:   false,
 			expectedErr: codes.OK,
 		},
@@ -85,7 +85,7 @@ func TestAuthInterceptor(t *testing.T) {
 
 			// Mock handler that checks for claims in context
 			handler := func(ctx context.Context, _ interface{}) (interface{}, error) {
-				if tt.fullMethod == "/company.v1.CompanyService/CreateCompany" {
+				if tt.fullMethod == "/definition.v1.CompanyService/CreateCompany" {
 					claims, ok := ctx.Value(userContextKey).(jwt.MapClaims)
 					if !ok || claims["sub"] != userID {
 						return nil, status.Error(codes.Unauthenticated, "claims not in context")
@@ -245,9 +245,9 @@ func TestNewAuthInterceptor(t *testing.T) {
 	}
 
 	protectedMethods := []string{
-		"/company.v1.CompanyService/CreateCompany",
-		"/company.v1.CompanyService/UpdateCompany",
-		"/company.v1.CompanyService/DeleteCompany",
+		"/definition.v1.CompanyService/CreateCompany",
+		"/definition.v1.CompanyService/UpdateCompany",
+		"/definition.v1.CompanyService/DeleteCompany",
 	}
 
 	for _, method := range protectedMethods {

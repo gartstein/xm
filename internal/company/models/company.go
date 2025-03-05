@@ -13,15 +13,11 @@ type CompanyType string
 
 const (
 	// Corporations represents a corporation.
-	Corporations CompanyType = "Corporations"
-	// NonProfit represents a non-profit organization.
-	NonProfit CompanyType = "NonProfit"
-	// Cooperative represents a cooperative.
-	Cooperative CompanyType = "Cooperative"
-	// SoleProprietorship represents a sole proprietorship.
-	SoleProprietorship CompanyType = "Sole Proprietorship"
-	// Unknown represents an undefined company type.
-	Unknown CompanyType = "Unknown"
+	Corporations       CompanyType = "CORPORATIONS"
+	NonProfit          CompanyType = "NON_PROFIT"
+	Cooperative        CompanyType = "COOPERATIVE"
+	SoleProprietorship CompanyType = "SOLE_PROPRIETORSHIP"
+	Unknown            CompanyType = "UNSPECIFIED"
 )
 
 // Company defines the domain model for a company entity.

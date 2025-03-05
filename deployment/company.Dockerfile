@@ -1,15 +1,17 @@
-# Dockerfile
-FROM golang:1.20-alpine AS builder
+# Build Stage
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main ./cmd/server
+RUN go build -o company cmd/company/main.go
 
+# Final Stage
 FROM alpine:latest
 WORKDIR /root/
-COPY --from=builder /app/main .
+COPY --from=builder /app/company .
+COPY internal/company/config/config.yaml internal/company/config/config.yaml
 EXPOSE 50051
-CMD ["./main"]
+CMD ["./company"]

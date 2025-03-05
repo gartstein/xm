@@ -1,10 +1,12 @@
 GRPC_PORT: 50051
 HTTP_PORT: 8080
-DB_HOST: localhost
+DB_HOST: postgres
 DB_PORT: 5432
 DB_USER: xm
 DB_PASSWORD: xm
 DB_NAME: xm
+DB_SSLMODE: disable
 KAFKA_BROKERS:
   - kafka:9092
-JWT_SECRET: "jwt_secret"
+JWT_SECRET: jwt_secret
+TOPIC: company_events

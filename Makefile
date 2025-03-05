@@ -69,7 +69,10 @@ docker-build:
 
 ## 🚀 Run services locally via Docker Compose (Postgres, Kafka, gRPC service, etc.).
 docker-run:
-	docker-compose up --build
+	cd deployment && docker-compose up --build
+
+docker-stop:
+	cd deployment && docker-compose down
 
 ## 🗑️ Clean up local build artifacts.
 clean:

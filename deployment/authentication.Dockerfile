@@ -1,5 +1,5 @@
 # Use Go as the base image
-FROM golang:1.20-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ COPY --from=builder /app/auth-service .
 
 # Set environment variables
 ENV AUTH_SERVICE_PORT=8081
-ENV JWT_SECRET=mysecret
+ENV JWT_SECRET=jwt_secret
 
 # Expose port
 EXPOSE 8081

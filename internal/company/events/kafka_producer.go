@@ -3,7 +3,6 @@ package events
 import (
 	"context"
 	"encoding/json"
-
 	"github.com/gartstein/xm/internal/company/models"
 	"github.com/segmentio/kafka-go"
 	"go.uber.org/zap"
@@ -36,12 +35,31 @@ type Producer struct {
 	closeChan chan struct{}
 }
 
-func NewProducer(brokers []string, logger *zap.Logger) *Producer {
+func NewProducer(brokers []string, logger *zap.Logger, topic string) (*Producer, error) {
+	// Create topic if it doesn't exist
+	conn, err := kafka.Dial("tcp", brokers[0])
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	topicConfigs := []kafka.TopicConfig{
+		{
+			Topic:             topic,
+			NumPartitions:     3,
+			ReplicationFactor: 1,
+		},
+	}
+
+	err = conn.CreateTopics(topicConfigs...)
+	if err != nil {
+		logger.Warn("failed to create topic (may already exist)", zap.Error(err))
+	}
 	p := &Producer{
 		writer: &kafka.Writer{
 			Addr:     kafka.TCP(brokers...),
 			Balancer: &kafka.LeastBytes{},
-			Async:    true,
+			Topic:    topic,
 		},
 		events:    make(chan Event, 1000), // Buffered channel
 		logger:    logger.Named("kafka_producer"),
@@ -49,7 +67,7 @@ func NewProducer(brokers []string, logger *zap.Logger) *Producer {
 	}
 
 	go p.eventLoop()
-	return p
+	return p, nil
 }
 
 func (p *Producer) Produce(eventType EventType, company *models.Company) {
@@ -75,7 +93,7 @@ func (p *Producer) eventLoop() {
 }
 
 func (p *Producer) sendEvent(ctx context.Context, event Event) {
-	value, err := jsonMarshal(event.Company)
+	value, err := jsonMarshal(event)
 	if err != nil {
 		p.logger.Error("Failed to serialize event",
 			zap.Error(err),
@@ -83,19 +101,17 @@ func (p *Producer) sendEvent(ctx context.Context, event Event) {
 		)
 		return
 	}
-
 	err = p.writer.WriteMessages(ctx, kafka.Message{
 		Key:   []byte(event.Company.ID.String()),
 		Value: value,
-		Topic: string(event.Type),
 	})
-
 	if err != nil {
 		p.logger.Error("Failed to produce event",
 			zap.Error(err),
 			zap.String("event_type", string(event.Type)),
 			zap.String("company_id", event.Company.ID.String()),
 		)
+		return
 	}
 }
 

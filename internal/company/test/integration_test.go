@@ -20,6 +20,12 @@ import (
 	"go.uber.org/zap"
 )
 
+type kafkaEvent struct {
+	Key     string
+	Type    events.EventType
+	Company *models.Company
+}
+
 type IntegrationTestSuite struct {
 	suite.Suite
 	dbRepo       *db.Repository
@@ -39,20 +45,13 @@ func TestIntegrationSuite(t *testing.T) {
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	s.logger = zap.NewNop()
-	s.testTimeout = 10 * time.Second
+	s.testTimeout = 20 * time.Second
 
 	// Initialize database with retries
 	var dbErr error
 	s.dbRepo, dbErr = initializeDBWithRetry()
 	if dbErr != nil {
 		s.T().Fatal("Database initialization failed:", dbErr)
-	}
-
-	// Initialize Kafka components with retries
-	var kafkaErr error
-	s.producer, s.kafkaReader, kafkaErr = initializeKafkaWithRetry(string(events.CompanyCreated))
-	if kafkaErr != nil {
-		s.T().Fatal("Kafka initialization failed:", kafkaErr)
 	}
 }
 
@@ -82,12 +81,12 @@ func initializeKafkaWithRetry(topic string) (*events.Producer, *kafka.Reader, er
 	kafkaBrokers := []string{"localhost:9092"}
 	var producer *events.Producer
 	var reader *kafka.Reader
-
-	// 🔹 Retry producer initialization
-	err := backoff.Retry(func() error {
-		producer = events.NewProducer(kafkaBrokers, zap.NewNop())
-		if producer == nil {
-			return fmt.Errorf("failed to create Kafka producer")
+	var err error
+	// Retry producer initialization
+	err = backoff.Retry(func() error {
+		producer, err = events.NewProducer(kafkaBrokers, zap.NewNop(), topic)
+		if err != nil || producer == nil {
+			return fmt.Errorf("failed to create Kafka produce: %v", err)
 		}
 		return nil
 	}, backoff.NewExponentialBackOff())
@@ -96,7 +95,7 @@ func initializeKafkaWithRetry(topic string) (*events.Producer, *kafka.Reader, er
 		return nil, nil, fmt.Errorf("Kafka producer initialization failed: %w", err)
 	}
 
-	// 🔹 Verify Kafka readiness using metadata instead of blocking on ReadMessage
+	// Verify Kafka readiness using metadata instead of blocking on ReadMessage
 	err = backoff.Retry(func() error {
 		conn, err := kafka.Dial("tcp", kafkaBrokers[0])
 		if err != nil {
@@ -105,7 +104,7 @@ func initializeKafkaWithRetry(topic string) (*events.Producer, *kafka.Reader, er
 		defer conn.Close()
 
 		// Fetch metadata and ensure the topic exists
-		partitions, err := conn.ReadPartitions(string(events.CompanyCreated))
+		partitions, err := conn.ReadPartitions(topic)
 		if err != nil || len(partitions) == 0 {
 			return fmt.Errorf("topic company_created not found")
 		}
@@ -116,7 +115,7 @@ func initializeKafkaWithRetry(topic string) (*events.Producer, *kafka.Reader, er
 		return nil, nil, fmt.Errorf("Kafka topic check failed: %w", err)
 	}
 
-	// 🔹 Initialize Kafka Reader (Without Blocking on ReadMessage)
+	// Initialize Kafka Reader (Without Blocking on ReadMessage)
 	reader = kafka.NewReader(kafka.ReaderConfig{
 		Brokers:     kafkaBrokers,
 		Topic:       topic,
@@ -147,19 +146,23 @@ func (s *IntegrationTestSuite) SetupTest() {
 	if err := s.dbRepo.Exec(ctx, "TRUNCATE TABLE companies CASCADE"); err != nil {
 		s.T().Fatal("Failed to clean database:", err)
 	}
+}
 
-	// Verify Kafka connection
-	if s.kafkaReader == nil {
-		s.T().Fatal("Kafka reader not initialized")
+func (s *IntegrationTestSuite) createCompany(ctx context.Context, service *controller.CompanyService, newCompany *models.Company) uuid.UUID {
+	created, err := service.CreateCompany(ctx, newCompany)
+	if err != nil {
+		s.T().Fatal("CreateCompany failed:", err)
 	}
-
-	// Reset Kafka offsets safely
-	if err := s.kafkaReader.SetOffset(kafka.LastOffset); err != nil {
-		s.T().Logf("Could not reset Kafka offset, continuing with default behavior: %v", err)
-	}
+	return created.ID
 }
 
 func (s *IntegrationTestSuite) TestCompanyCreate() {
+	// Initialize Kafka components with retries
+	var kafkaErr error
+	s.producer, s.kafkaReader, kafkaErr = initializeKafkaWithRetry(string(events.CompanyCreated))
+	if kafkaErr != nil {
+		s.T().Fatal("Kafka initialization failed:", kafkaErr)
+	}
 	// Verify dependencies
 	if s.dbRepo == nil || s.producer == nil {
 		s.T().Fatal("Dependencies not initialized")
@@ -169,12 +172,6 @@ func (s *IntegrationTestSuite) TestCompanyCreate() {
 	defer cancel()
 
 	ctrl := controller.NewCompanyService(s.dbRepo, s.producer, s.logger)
-	// Initialize Kafka components with retries
-	var kafkaErr error
-	s.producer, s.kafkaReader, kafkaErr = initializeKafkaWithRetry(string(events.CompanyCreated))
-	if kafkaErr != nil {
-		s.T().Fatal("Kafka initialization failed:", kafkaErr)
-	}
 	newCompany := &models.Company{
 		Name:        "New Company",
 		Description: "Integration Test Company",
@@ -194,23 +191,23 @@ func (s *IntegrationTestSuite) TestCompanyCreate() {
 }
 
 func (s *IntegrationTestSuite) TestCompanyUpdate() {
+	// Initialize Kafka components with retries
+	var kafkaErr error
+	s.producer, s.kafkaReader, kafkaErr = initializeKafkaWithRetry(string(events.CompanyCreated))
+	if kafkaErr != nil {
+		s.T().Fatal("Kafka initialization failed:", kafkaErr)
+	}
 	// Verify dependencies
 	if s.dbRepo == nil || s.producer == nil {
 		s.T().Fatal("Dependencies not initialized")
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), s.testTimeout)
 	defer cancel()
 
 	ctrl := controller.NewCompanyService(s.dbRepo, s.producer, s.logger)
-	// Initialize Kafka components with retries
-	var kafkaErr error
-	s.producer, s.kafkaReader, kafkaErr = initializeKafkaWithRetry(string(events.CompanyUpdated))
-
-	if kafkaErr != nil {
-		s.T().Fatal("Kafka initialization failed:", kafkaErr)
-	}
-
-	company := &models.Company{
+	newCompany := &models.Company{
+		ID:          uuid.New(),
 		Name:        "New Company",
 		Description: "Integration Test Company",
 		Employees:   100,
@@ -219,16 +216,16 @@ func (s *IntegrationTestSuite) TestCompanyUpdate() {
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	created, err := ctrl.CreateCompany(ctx, company)
+	err := s.dbRepo.CreateCompany(ctx, newCompany)
 	if err != nil {
 		s.T().Fatal("CreateCompany failed:", err)
 	}
 	newName := "Updated Company"
 	update := &models.CompanyUpdate{
-		ID:          created.ID,
+		ID:          newCompany.ID,
 		Name:        &newName,
-		Description: &company.Description,
-		Employees:   &company.Employees,
+		Description: &newCompany.Description,
+		Employees:   &newCompany.Employees,
 	}
 
 	updatedCompany, err := ctrl.UpdateCompany(ctx, update)
@@ -237,10 +234,18 @@ func (s *IntegrationTestSuite) TestCompanyUpdate() {
 	}
 
 	assert.Equal(s.T(), newName, updatedCompany.Name)
+	time.Sleep(2 * time.Second)
 	s.verifyKafkaEvent(ctx, events.CompanyUpdated, updatedCompany.ID)
 }
 
 func (s *IntegrationTestSuite) TestCompanyDelete() {
+	// Initialize Kafka components with retries
+	var kafkaErr error
+	s.producer, s.kafkaReader, kafkaErr = initializeKafkaWithRetry(string(events.CompanyDeleted))
+
+	if kafkaErr != nil {
+		s.T().Fatal("Kafka initialization failed:", kafkaErr)
+	}
 	// Verify dependencies
 	if s.dbRepo == nil || s.producer == nil {
 		s.T().Fatal("Dependencies not initialized")
@@ -249,13 +254,6 @@ func (s *IntegrationTestSuite) TestCompanyDelete() {
 	defer cancel()
 
 	ctrl := controller.NewCompanyService(s.dbRepo, s.producer, s.logger)
-	// Initialize Kafka components with retries
-	var kafkaErr error
-	s.producer, s.kafkaReader, kafkaErr = initializeKafkaWithRetry(string(events.CompanyDeleted))
-
-	if kafkaErr != nil {
-		s.T().Fatal("Kafka initialization failed:", kafkaErr)
-	}
 
 	company := &models.Company{
 		Name:        "New Company",
@@ -266,24 +264,20 @@ func (s *IntegrationTestSuite) TestCompanyDelete() {
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	created, err := ctrl.CreateCompany(ctx, company)
+	err := s.dbRepo.CreateCompany(ctx, company)
 	if err != nil {
 		s.T().Fatal("CreateCompany failed:", err)
 	}
-	err = ctrl.DeleteCompany(ctx, created.ID)
+	err = ctrl.DeleteCompany(ctx, company.ID)
 	if err != nil {
 		s.T().Fatal("DeleteCompany failed:", err)
 	}
 
-	_, err = s.dbRepo.GetCompany(ctx, created.ID)
+	_, err = s.dbRepo.GetCompany(ctx, company.ID)
 	assert.ErrorIs(s.T(), err, e.ErrNotFound)
 	s.T().Logf("Deleted companyID=%s", company.ID.String())
+	time.Sleep(2 * time.Second)
 	s.verifyKafkaEvent(ctx, events.CompanyDeleted, company.ID)
-}
-
-type kafkaEvent struct {
-	Key     string
-	Company *models.Company
 }
 
 func (s *IntegrationTestSuite) verifyKafkaEvent(ctx context.Context, eventType events.EventType, companyID uuid.UUID) {
@@ -297,12 +291,11 @@ func (s *IntegrationTestSuite) verifyKafkaEvent(ctx context.Context, eventType e
 }
 
 func (s *IntegrationTestSuite) consumeKafkaEvent(ctx context.Context, eventType events.EventType, companyID uuid.UUID) kafkaEvent {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	maxRetries := 200
 	attempts := 0
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -321,25 +314,26 @@ func (s *IntegrationTestSuite) consumeKafkaEvent(ctx context.Context, eventType 
 				continue
 			}
 			s.T().Logf("Received Kafka message: Topic=%s Key=%s", msg.Topic, string(msg.Key))
-			if msg.Topic != string(eventType) {
-				s.T().Logf("Skipping message from different topic: %s", msg.Topic)
-				attempts++
-				continue
-			}
+			fmt.Println("Received Kafka: ", string(msg.Value))
 			if string(msg.Key) != companyID.String() {
-				s.T().Logf("⚠️ Skipping message with unmatched key: %s (Expected: %s)", string(msg.Key), companyID.String())
+				s.T().Logf("Skipping message with unmatched key: %s (Expected: %s)", string(msg.Key), companyID.String())
 				attempts++
 				continue
 			}
-			var company models.Company
-			if err := json.Unmarshal(msg.Value, &company); err != nil {
+			var event kafkaEvent
+			if err := json.Unmarshal(msg.Value, &event); err != nil {
 				s.T().Fatalf("Failed to unmarshal Kafka message: %v", err)
 			}
-
-			s.T().Logf("✅ Successfully consumed event: %s, ID=%s, attempts=%d", eventType, company.ID.String(), attempts)
+			if event.Type != eventType {
+				s.T().Logf("Skipping message with unmatched eventType: %s (Expected: %s)", string(event.Type), eventType)
+				attempts++
+				continue
+			}
+			s.T().Logf("Successfully consumed event: %s, ID=%s, attempts=%d", eventType, event.Company.ID.String(), attempts)
 			return kafkaEvent{
 				Key:     string(msg.Key),
-				Company: &company,
+				Company: event.Company,
+				Type:    eventType,
 			}
 		}
 	}

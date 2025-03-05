@@ -60,6 +60,10 @@ func isProtectedRequest(r *http.Request) bool {
 		"DELETE": "/v1/companies/", // DeleteCompany
 	}
 
+	if _, exists := protectedRoutes[r.Method]; !exists {
+		return false
+	}
+
 	expectedPath := protectedRoutes[r.Method]
 	return strings.HasPrefix(r.URL.Path, expectedPath)
 }

@@ -21,15 +21,17 @@ import (
 
 // Config struct for YAML configuration
 type Config struct {
-	GRPCPort     int      `yaml:"grpc_port"`
-	HTTPPort     int      `yaml:"http_port"`
-	JWTSecret    string   `yaml:"jwt_secret"`
-	DBHost       string   `yaml:"db_host"`
-	DBPort       int      `yaml:"db_port"`
-	DBUser       string   `yaml:"db_user"`
-	DBPassword   string   `yaml:"db_password"`
-	DBName       string   `yaml:"db_name"`
-	KafkaBrokers []string `yaml:"kafka_brokers"`
+	GRPCPort     int      `yaml:"GRPC_PORT"`
+	HTTPPort     int      `yaml:"HTTP_PORT"`
+	DBHost       string   `yaml:"DB_HOST"`
+	DBPort       int      `yaml:"DB_PORT"`
+	DBUser       string   `yaml:"DB_USER"`
+	DBPassword   string   `yaml:"DB_PASSWORD"`
+	DBName       string   `yaml:"DB_NAME"`
+	DBSSLMode    string   `yaml:"DB_SSLMODE"`
+	KafkaBrokers []string `yaml:"KAFKA_BROKERS"`
+	JWTSecret    string   `yaml:"JWT_SECRET"`
+	Topic        string   `yaml:"TOPIC"`
 }
 
 func main() {
@@ -52,7 +54,10 @@ func main() {
 		log.Fatal("failed to initialize database", err)
 	}
 
-	producer := events.NewProducer(cfg.KafkaBrokers, logger)
+	producer, err := events.NewProducer(cfg.KafkaBrokers, logger, cfg.Topic)
+	if err != nil {
+		log.Fatal("failed to initialize Kafka producer", err)
+	}
 	defer producer.Close()
 
 	companySvc := controller.NewCompanyService(repo, producer, logger)
@@ -72,7 +77,7 @@ func main() {
 		[]grpc.DialOption{
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		},
-		"jwt"); err != nil {
+		cfg.JWTSecret); err != nil {
 		logger.Fatal("Failed to register HTTP gateway", zap.Error(err))
 	}
 	// Start servers
@@ -113,6 +118,7 @@ func initDatabase(cfg *Config) *gorm.Config {
 		User:     cfg.DBUser,
 		Password: cfg.DBPassword,
 		DBName:   cfg.DBName,
+		SSLMode:  cfg.DBSSLMode,
 	}
 }
 

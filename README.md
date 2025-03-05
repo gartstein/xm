@@ -134,10 +134,7 @@ This API uses **JWT authentication**. Before calling secured endpoints, you must
 
 #### **1. Obtain a JWT Token**
 ```sh
-curl -X POST http://localhost:8080/auth/login   -H "Content-Type: application/json"   -d '{
-    "username": "admin",
-    "password": "password"
-  }'
+curl -X POST http://localhost:8081/token   -H "Content-Type: application/json"
 ```
 The response will contain a JWT token, which you must include in all requests to protected endpoints.
 
@@ -146,42 +143,84 @@ The response will contain a JWT token, which you must include in all requests to
 ### **API Endpoints**
 #### **1. Create a Company**
 ```sh
-curl -X POST http://localhost:8080/companies   -H "Authorization: Bearer <YOUR_TOKEN>"   -H "Content-Type: application/json"   -d '{
-    "name": "My Company",
-    "description": "A great company",
-    "employees": 50,
-    "registered": true,
-    "type": "Corporation"
+curl -X POST http://localhost:8082/v1/companies  -H "Authorization: Bearer < TOKEN >" -H "Content-Type: application/json"   -d '{
+    "company": {
+      "name": "My Company",
+      "description": "A great company",
+      "employees": 50,
+      "registered": true,
+      "type": "Corporation"
+    }
   }'
 ```
 
 #### **2. Get a Company by ID**
 ```sh
-curl -X GET http://localhost:8080/companies/<COMPANY_ID>   -H "Authorization: Bearer <YOUR_TOKEN>"
+curl -X GET http://localhost:8082/v1/companies/:id
 ```
 
 #### **3. Update a Company**
 ```sh
-curl -X PATCH http://localhost:8080/companies/<COMPANY_ID>   -H "Authorization: Bearer <YOUR_TOKEN>"   -H "Content-Type: application/json"   -d '{
-    "name": "Updated Company Name"
+curl -X PATCH http://localhost:8082/v1/companies/:id   -H "Authorization: Bearer < TOKEN >"   -H "Content-Type: application/json"   -d '{
+      "company":{
+        "name": "Updated Company Name"
+      }
   }'
 ```
 
 #### **4. Delete a Company**
 ```sh
-curl -X DELETE http://localhost:8080/companies/<COMPANY_ID>   -H "Authorization: Bearer <YOUR_TOKEN>"
-```
-
-#### **5. Check if a Company Exists by Name**
-```sh
-curl -X GET http://localhost:8080/companies/exists?name=MyCompany   -H "Authorization: Bearer <YOUR_TOKEN>"
+curl -X DELETE http://localhost:8082/v1/companies/2f6a8c3c-9ab3-4837-8940-910595a5ff99   -H "Authorization: Bearer < TOKEN >"
 ```
 
 ## Accessing the API via gRPC ##
 
 #### 
 ### This service also supports gRPC in addition to HTTP. The gRPC API allows clients to communicate efficiently using protocol buffers.
+#### **1. Create a Company**
+```sh
+grpcurl -plaintext -d '{
+    "company": {
+    "name": "Test Company2",
+    "description": "A sample company",
+    "employees": 100,
+    "registered": true,
+    "type": "CORPORATIONS"
+  }
+}' -H "authorization: Bearer < TOKEN >" \
+localhost:50051 definition.v1.CompanyService.CreateCompany
+```
+#### **2. Get a Company by ID**
+```sh
+grpcurl -plaintext -d '{
+   "id": "uuid"
+}' \
+localhost:50051 definition.v1.CompanyService.GetCompany
+```
 
+#### **3. Update a Company**
+```sh
+ grpcurl -plaintext -d '{
+  "id": "uuid",
+  "company": {
+    "name": "Test Company2",
+    "description": "A sample company",
+    "employees": 100,
+    "registered": true,
+    "type": "SOLE_PROPRIETORSHIP"
+  }
+}' -H "authorization: Bearer < TOKEN >" \
+localhost:50051 definition.v1.CompanyService.UpdateCompany
+
+```
+
+#### **4. Delete a Company**
+```sh
+grpcurl -plaintext -d '{
+   "id":   "uuid"
+}' -H "authorization: Bearer < TOKEN >" \
+localhost:50051 definition.v1.CompanyService.DeleteCompany
+```
 ---
 
 ## Expectations
@@ -195,13 +234,12 @@ The following **bonus features** are included:
 - **Configuration file support**
 
 ## Conclusion
-This microservice is designed to be **scalable, maintainable, and production-ready**. It follows **modern Golang development practices**, integrates **Kafka for event processing**, and provides **robust authentication**.
+This microservice is designed to be **scalable, maintainable, and production-ready**. It follows **modern Golang development practices**, integrates **Kafka for event processing**.
 
 ---
 
 ### 📌 **Next Steps**
-- Run `make proto` before starting the service to generate protobuf files.
-- Use `make test` to validate changes before committing.
+- Run `make` or `make help` for all options
 
 ---
 

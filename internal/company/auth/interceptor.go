@@ -30,9 +30,9 @@ const (
 // default protected methods.
 func NewAuthInterceptor(jwtSecret string) *Interceptor {
 	protected := map[string]bool{
-		"/company.v1.CompanyService/CreateCompany": true,
-		"/company.v1.CompanyService/UpdateCompany": true,
-		"/company.v1.CompanyService/DeleteCompany": true,
+		"/definition.v1.CompanyService/CreateCompany": true,
+		"/definition.v1.CompanyService/UpdateCompany": true,
+		"/definition.v1.CompanyService/DeleteCompany": true,
 	}
 
 	return &Interceptor{
@@ -94,10 +94,11 @@ func extractTokenFromMetadata(md metadata.MD) (string, error) {
 
 // validateToken checks the token signature and returns parsed claims if valid.
 func validateToken(tokenString, secret string) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
+
 		return []byte(secret), nil
 	})
 
@@ -105,9 +106,10 @@ func validateToken(tokenString, secret string) (jwt.MapClaims, error) {
 		return nil, fmt.Errorf("invalid token: %w", err)
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		return claims, nil
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("invalid token claims")
 	}
 
-	return nil, fmt.Errorf("invalid token claims")
+	return claims, nil
 }

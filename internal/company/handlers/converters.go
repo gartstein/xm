@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 
 	pb "github.com/gartstein/xm/api/gen/definition/v1"
 	e "github.com/gartstein/xm/internal/company/errors"
@@ -24,7 +25,7 @@ func (h *CompanyHandler) protoToModel(pbCompany *pb.Company) (*models.Company, e
 		Description: pbCompany.GetDescription(),
 		Employees:   int(pbCompany.GetEmployees()),
 		Registered:  pbCompany.GetRegistered(),
-		Type:        models.CompanyType(pbCompany.GetType().String()),
+		Type:        normalizeCompanyType(pbCompany.Type),
 	}, nil
 }
 
@@ -57,6 +58,22 @@ func (h *CompanyHandler) modelToProto(company *models.Company) *pb.Company {
 	}
 }
 
+// normalizeCompanyType converts string input to CompanyType enum
+func normalizeCompanyType(companyType pb.CompanyType) models.CompanyType {
+	switch companyType {
+	case pb.CompanyType_CORPORATIONS:
+		return models.Corporations
+	case pb.CompanyType_NON_PROFIT:
+		return models.NonProfit
+	case pb.CompanyType_COOPERATIVE:
+		return models.Cooperative
+	case pb.CompanyType_SOLE_PROPRIETORSHIP:
+		return models.SoleProprietorship
+	default:
+		return models.Corporations
+	}
+}
+
 // mapServiceError maps domain or repository errors to appropriate gRPC status codes.
 func (h *CompanyHandler) mapServiceError(err error) error {
 	switch {
@@ -68,6 +85,6 @@ func (h *CompanyHandler) mapServiceError(err error) error {
 		return status.Error(codes.InvalidArgument, err.Error())
 	default:
 		h.logger.Error("Internal server error", zap.Error(err))
-		return status.Error(codes.Internal, "internal server error")
+		return status.Error(codes.Internal, fmt.Sprintf("internal server error: %v", err))
 	}
 }

@@ -9,6 +9,10 @@ services:
       - "5432:5432"
     networks:
       - xm-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "xm", "-d", "xm"]
+      interval: 5s
+      retries: 5
 
   kafka:
     image: bitnami/kafka:3.4
@@ -16,7 +20,7 @@ services:
       - "9092:9092"
     environment:
       KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
-      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
     networks:
       - xm-network
@@ -31,25 +35,29 @@ services:
       - xm-network
 
   company:
+    depends_on:
+      postgres:
+        condition: service_healthy
     build:
-      context: .
-      dockerfile: deployment/company.Dockerfile
+      context: ..
+      dockerfile: ./deployment/company.Dockerfile
     ports:
-      - "8082:8082"
-    environment:
-      - COMPANY_ENV_VAR=some_value
+      - "8082:8080"
+      - "50051:50051"
     restart: unless-stopped
     networks:
       - xm-network
 
   authentication:
     build:
-      context: .
-      dockerfile: deployment/authentication.Dockerfile
+      context: ..
+      dockerfile: ./deployment/authentication.Dockerfile
     ports:
       - "8081:8081"
     environment:
       - JWT_SECRET=jwt_secret
     restart: unless-stopped
+    networks:
+      - xm-network
 networks:
   xm-network:

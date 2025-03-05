@@ -59,6 +59,21 @@ Ensure you have the following installed:
 - **Docker & Docker Compose**
 - **Make**
 - **Protobuf Compiler (`buf`)**
+  
+  - Install protoc:
+    - MacOS: brew install protobuf
+    - Linux: Follow instructions at Protobuf Releases
+    - Windows: Download from the official site
+  - Install Buf:
+    - MacOS: brew install bufbuild/buf/buf
+    - Linux: Follow instructions at Buf Installation
+    - Windows: Use choco install buf (Chocolatey) or download manually
+  - Google APIs for Protobuf:
+    - install via buf mod update (inside api directory).
+    - Alternativelly:
+    ```sh
+     git clone https://github.com/googleapis/googleapis.git
+     ```
 - **golangci-lint**
 
 ### **Installation**
@@ -118,16 +133,15 @@ The project includes a `Makefile` that simplifies common development tasks.
 ## Accessing the API
 
 ### **Running the Service**
-To start the service locally, run:
-```sh
-make run-backend
-```
-or using Docker:
+To start the service locally using Docker run:
 ```sh
 make docker-run
 ```
-
-By default, the API runs on `http://localhost:8080`.
+to stop:
+```sh
+make docker-stop
+```
+By default, the API runs on `http://localhost:8082`(`localhost:50051` for `gRPC`).
 
 ### **Authentication**
 This API uses **JWT authentication**. Before calling secured endpoints, you must **obtain a token** using the login endpoint:
@@ -181,7 +195,7 @@ curl -X DELETE http://localhost:8082/v1/companies/2f6a8c3c-9ab3-4837-8940-910595
 ```sh
 grpcurl -plaintext -d '{
     "company": {
-    "name": "Test Company2",
+    "name": "Test Company",
     "description": "A sample company",
     "employees": 100,
     "registered": true,
@@ -203,9 +217,9 @@ localhost:50051 definition.v1.CompanyService.GetCompany
  grpcurl -plaintext -d '{
   "id": "uuid",
   "company": {
-    "name": "Test Company2",
+    "name": "Test Company",
     "description": "A sample company",
-    "employees": 100,
+    "employees": 10,
     "registered": true,
     "type": "SOLE_PROPRIETORSHIP"
   }

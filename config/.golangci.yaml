@@ -1,0 +1,18 @@
+version: 1
+
+linters-settings:
+  govet:
+    shadow: true  # Detect variable shadowing issues.
+
+run:
+  timeout: 3m
+  issues-exit-code: 1
+
+linters:
+  enable-all: false  # Explicitly disable all linters except those listed below.
+  enable:
+    - govet
+    - gofmt
+    - goimports
+    - revive
+    - errcheck  # Ensure all errors are checked in the code.

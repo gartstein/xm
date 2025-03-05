@@ -1,0 +1,4 @@
+version: v1
+name: github.com/gartstein/xm
+deps:
+  - buf.build/googleapis/googleapis
